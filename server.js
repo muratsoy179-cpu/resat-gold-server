@@ -8,18 +8,20 @@ let lastData = [];
 let lastRaw = "";
 let lastUpdate = null;
 let socketStatus = "Başlatılıyor";
+let restStatus = "REST bekliyor";
 
-function connectGramvey() {
-  socketStatus = "Gramvey bağlanıyor...";
+function connectGramveySocket() {
+  socketStatus = "Gramvey WebSocket bağlanıyor...";
 
   const ws = new WebSocket("wss://goldpricesocket.gramvey.com", {
     headers: {
-      "User-Agent": "Mozilla/5.0"
+      "User-Agent": "Mozilla/5.0",
+      "Origin": "https://gramvey.com"
     }
   });
 
   ws.on("open", () => {
-    socketStatus = "Gramvey canlı bağlantı kuruldu";
+    socketStatus = "Gramvey WebSocket canlı bağlantı kuruldu";
     console.log(socketStatus);
   });
 
@@ -27,33 +29,83 @@ function connectGramvey() {
     try {
       const text = message.toString();
       lastRaw = text;
-      lastData = JSON.parse(text);
+
+      const parsed = JSON.parse(text);
+      lastData = parsed;
       lastUpdate = new Date().toISOString();
-      console.log("Veri güncellendi:", lastUpdate);
+
+      console.log("WebSocket veri geldi:", lastUpdate);
     } catch (err) {
-      console.log("JSON okunamadı:", err.message);
+      console.log("WebSocket JSON okunamadı:", err.message);
     }
   });
 
   ws.on("close", (code, reason) => {
-    socketStatus = "Gramvey kapandı: " + code + " " + reason;
+    socketStatus = "Gramvey WebSocket kapandı: " + code + " " + reason;
     console.log(socketStatus);
-    setTimeout(connectGramvey, 5000);
+
+    setTimeout(connectGramveySocket, 10000);
   });
 
   ws.on("error", (err) => {
-    socketStatus = "Gramvey hata: " + err.message;
+    socketStatus = "Gramvey WebSocket hata: " + err.message;
     console.log(socketStatus);
   });
 }
 
-connectGramvey();
+async function fetchGramveyRest() {
+  try {
+    restStatus = "Gramvey REST deneniyor...";
+
+    const response = await fetch("https://goldapi.gramvey.com/golds", {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
+
+    const text = await response.text();
+    lastRaw = text;
+
+    if (!response.ok) {
+      restStatus = "REST hata HTTP: " + response.status;
+      console.log(restStatus + " - " + text);
+      return;
+    }
+
+    const parsed = JSON.parse(text);
+
+    if (Array.isArray(parsed)) {
+      lastData = parsed;
+    } else if (parsed.data && Array.isArray(parsed.data)) {
+      lastData = parsed.data;
+    } else {
+      lastData = parsed;
+    }
+
+    lastUpdate = new Date().toISOString();
+    restStatus = "Gramvey REST veri alındı";
+
+    console.log("REST veri geldi:", lastUpdate);
+
+  } catch (err) {
+    restStatus = "REST hata: " + err.message;
+    console.log(restStatus);
+  }
+}
+
+connectGramveySocket();
+
+fetchGramveyRest();
+setInterval(fetchGramveyRest, 5000);
 
 app.get("/", (req, res) => {
   res.json({
     ok: true,
     message: "Reşat Kuyumculuk Gold Server çalışıyor",
-    status: socketStatus,
+    socketStatus: socketStatus,
+    restStatus: restStatus,
     lastUpdate: lastUpdate
   });
 });
@@ -61,8 +113,9 @@ app.get("/", (req, res) => {
 app.get("/prices", (req, res) => {
   res.json({
     ok: true,
-    source: "Gramvey WebSocket",
-    status: socketStatus,
+    source: "Gramvey WebSocket + REST",
+    socketStatus: socketStatus,
+    restStatus: restStatus,
     lastUpdate: lastUpdate,
     data: lastData,
     raw: lastRaw
