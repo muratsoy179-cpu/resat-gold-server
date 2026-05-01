@@ -20,10 +20,15 @@ function normalizeData(parsed) {
   if (parsed && parsed.data && typeof parsed.data === "object") {
     return Object.keys(parsed.data).map(function (key) {
       const item = parsed.data[key];
+
       if (item && typeof item === "object") {
         return Object.assign({ key: key }, item);
       }
-      return { key: key, value: item };
+
+      return {
+        key: key,
+        value: item
+      };
     });
   }
 
@@ -45,6 +50,10 @@ function normalizeData(parsed) {
 }
 
 app.get("/", function (req, res) {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+
   res.json({
     ok: true,
     message: "Reşat Kuyumculuk API çalışıyor",
@@ -53,7 +62,15 @@ app.get("/", function (req, res) {
   });
 });
 
-app.get("/prices", function (req, res) {
+app.get("/prices", async function (req, res) {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+
+  if (req.query.refresh === "1" || req.query.yenile === "1") {
+    await fetchHaremPrices();
+  }
+
   res.json({
     ok: true,
     source: "RapidAPI Harem Altın",
@@ -74,7 +91,8 @@ async function fetchHaremPrices() {
 
     apiStatus = "RapidAPI Harem verisi alınıyor...";
 
-    const url = "https://harem-altin-live-gold-price-data.p.rapidapi.com/harem_altin/prices/23b4c2fb31a242d1eebc0df9b9b65e5e";
+    const baseUrl = "https://harem-altin-live-gold-price-data.p.rapidapi.com/harem_altin/prices/23b4c2fb31a242d1eebc0df9b9b65e5e";
+    const url = baseUrl + "?t=" + Date.now();
 
     const response = await fetch(url, {
       method: "GET",
@@ -82,7 +100,9 @@ async function fetchHaremPrices() {
         "x-rapidapi-host": "harem-altin-live-gold-price-data.p.rapidapi.com",
         "x-rapidapi-key": RAPIDAPI_KEY,
         "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
       }
     });
 
