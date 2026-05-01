@@ -3,7 +3,12 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
+/*
+  GEÇİCİ ÇÖZÜM:
+  API key direkt buraya yazıldı.
+  Sonra GitHub repo'yu Private yapman iyi olur.
+*/
+const RAPIDAPI_KEY = "d13a999a9dmshcd4752d1a9385a1p1f7545jsn8073fcd697e9";
 
 let lastData = [];
 let lastRaw = "";
@@ -14,11 +19,6 @@ async function fetchHaremPrices() {
   try {
     apiStatus = "RapidAPI Harem verisi alınıyor...";
 
-    if (!RAPIDAPI_KEY) {
-      apiStatus = "RAPIDAPI_KEY Railway Variables içinde yok";
-      return;
-    }
-
     const url = "https://harem-altin-live-gold-price-data.p.rapidapi.com/harem_altin/prices/23b4c2fb31a242d1eebc0df9b9b65e5e";
 
     const response = await fetch(url, {
@@ -26,7 +26,8 @@ async function fetchHaremPrices() {
       headers: {
         "x-rapidapi-host": "harem-altin-live-gold-price-data.p.rapidapi.com",
         "x-rapidapi-key": RAPIDAPI_KEY,
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0"
       }
     });
 
@@ -35,7 +36,8 @@ async function fetchHaremPrices() {
 
     if (!response.ok) {
       apiStatus = "RapidAPI hata HTTP: " + response.status;
-      console.log(apiStatus + " - " + text);
+      console.log(apiStatus);
+      console.log(text);
       return;
     }
 
@@ -51,7 +53,8 @@ async function fetchHaremPrices() {
 
     lastUpdate = new Date().toISOString();
     apiStatus = "RapidAPI Harem veri alındı";
-    console.log("Veri güncellendi:", lastUpdate);
+
+    console.log("Veri güncellendi: " + lastUpdate);
 
   } catch (err) {
     apiStatus = "RapidAPI hata: " + err.message;
@@ -62,7 +65,7 @@ async function fetchHaremPrices() {
 fetchHaremPrices();
 setInterval(fetchHaremPrices, 30000);
 
-app.get("/", (req, res) => {
+app.get("/", function (req, res) {
   res.json({
     ok: true,
     message: "Reşat Kuyumculuk Harem API Server çalışıyor",
@@ -71,7 +74,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/prices", (req, res) => {
+app.get("/prices", function (req, res) {
   res.json({
     ok: true,
     source: "RapidAPI Harem Altın",
@@ -82,6 +85,6 @@ app.get("/prices", (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, function () {
   console.log("Server running on port " + PORT);
 });
